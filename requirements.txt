@@ -1,0 +1,12 @@
+streamlit
+langchain
+langchain-community
+langchain_groq
+sentence-transformers
+faiss-cpu
+PyMuPDF
+python-docx
+beautifulsoup4
+requests
+tavily-python
+google-generativeai

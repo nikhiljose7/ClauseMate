@@ -1,0 +1,21 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environment
+venv/
+
+# Ignore environment variable files
+.env
+
+# Ignore VS Code settings (if you use it)
+.vscode/
+
+# Ignore FAISS vector store files
+vectorstore/faiss_index/index.faiss
+vectorstore/faiss_index/index.pkl
+
+# Optional: Ignore logs and system files
+*.log
+.DS_Store
+Thumbs.db
