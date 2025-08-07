@@ -158,9 +158,11 @@ def analyzer_page():
             st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
             st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
 
+    # --- MODIFICATION: Display speaker names instead of time ---
     for message in st.session_state.tc_messages:
+        name = "You" if message["role"] == "user" else "ClauseMate"
         with st.chat_message(message["role"]):
-            st.markdown(f"*{message['time']}*")
+            st.markdown(f"**{name}**")
             st.markdown(message["content"])
 
     if st.session_state.get("show_attachment", False):
@@ -189,9 +191,9 @@ def analyzer_page():
                             f"**Document Processed: {analysis_results.get('company_name')}**\n\n"
                             f"**Summary:**\n{analysis_results.get('summary')}"
                         )
+                        # --- MODIFICATION: Remove time from message ---
                         st.session_state.tc_messages.append({
                             "role": "assistant",
-                            "time": datetime.now().strftime('%H:%M'),
                             "content": preview_message_content
                         })
 
@@ -209,13 +211,13 @@ def analyzer_page():
 
     if query:
         if not st.session_state.tc_messages or st.session_state.tc_messages[-1].get("content") != query:
-            current_time = datetime.now().strftime('%H:%M')
-            st.session_state.tc_messages.append({"role": "user", "time": current_time, "content": query})
+            # --- MODIFICATION: Remove time from messages ---
+            st.session_state.tc_messages.append({"role": "user", "content": query})
             
             with st.spinner("Generating response..."):
                 answer = get_rag_response(query, mode, special_mode, model_choice)
             
-            st.session_state.tc_messages.append({"role": "assistant", "time": datetime.now().strftime('%H:%M'), "content": answer})
+            st.session_state.tc_messages.append({"role": "assistant", "content": answer})
             st.rerun()
 
 def instructions_page():
@@ -239,7 +241,7 @@ def main():
     """Main function to run the Streamlit app."""
     st.set_page_config(
         page_title="T&C Analyzer",
-        page_icon=None,
+        page_icon="⚖️",
         layout="wide",
         initial_sidebar_state="expanded"
     )
