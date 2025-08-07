@@ -259,9 +259,14 @@ def main():
     st.session_state.setdefault("show_attachment", False)
     st.session_state.setdefault("model_choice", "Groq")
 
+    # --- MODIFICATION: Updated sidebar content ---
     with st.sidebar:
-        st.title("Navigation")
-        # --- MODIFICATION: Changed page name to 'About' ---
+        st.title("ClauseMate")
+        st.subheader("Your AI Legal Assistant")
+        
+        st.divider()
+
+        st.header("Navigation")
         page = st.radio("Go to:", ["Analyzer", "About"])
         
         st.divider()
@@ -270,8 +275,11 @@ def main():
             if st.button("Clear Chat History", use_container_width=True):
                 st.session_state.tc_messages = []
                 st.rerun()
+        
+        st.divider()
+        st.info("Made with ❤️ by Nikhil Jose")
 
-    # --- MODIFICATION: Changed condition to check for 'About' ---
+
     if page == "About":
         instructions_page()
     else:
