@@ -275,10 +275,6 @@ def main():
             if st.button("Clear Chat History", use_container_width=True):
                 st.session_state.tc_messages = []
                 st.rerun()
-        
-        st.divider()
-        st.info("Made with ❤️ by Nikhil Jose")
-
 
     if page == "About":
         instructions_page()
