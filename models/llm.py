@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage
-from config import GEMINI_API_KEY, GROQ_API_KEY, DEFAULT_GEMINI_MODEL, DEFAULT_GROQ_MODEL
+from config.config import GEMINI_API_KEY, GROQ_API_KEY, DEFAULT_GEMINI_MODEL, DEFAULT_GROQ_MODEL
 
 # Configure Gemini once using API key
 genai.configure(api_key=GEMINI_API_KEY)
