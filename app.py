@@ -150,14 +150,8 @@ def main_app_page(app_mode):
             else:
                 st.info("No document loaded for analysis.")
 
-    # Document-related UI (Only for Analyzer mode)
+    # Main page content
     if app_mode == "Analyzer":
-        if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
-            with st.expander("Document Preview", expanded=False):
-                st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
-                st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
-
-        # This section is toggled by the attach button at the bottom
         if st.session_state.get("show_attachment", False):
             with st.expander("Attach Document", expanded=True):
                 input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
@@ -186,16 +180,21 @@ def main_app_page(app_mode):
                             st.session_state.messages.append({"role": "assistant", "content": summary_message})
                             st.rerun()
 
-    # Chat interface - Display previous messages
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
+            with st.expander("Document Preview", expanded=False):
+                st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
+                st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
+    
+    # Isolate the chat history in a container
+    with st.container():
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-    # **CORRECTION**: Layout for the chat input and attach button.
+    # Input controls at the bottom
     query = None
     if app_mode == "Analyzer":
-        # Using columns to place the button to the left of the input box.
-        col1, col2 = st.columns([1, 10])
+        col1, col2 = st.columns([1, 12])
         with col1:
             st.button(
                 "📎", 
@@ -203,10 +202,9 @@ def main_app_page(app_mode):
                 help="Attach a document for analysis"
             )
         with col2:
-            query = st.chat_input("Ask a question about the document...")
+            query = st.chat_input("Ask a question about the document...", key="analyzer_input")
     else:
-        query = st.chat_input(f"Your message for {app_mode}...")
-
+        query = st.chat_input(f"Your message for {app_mode}...", key="other_input")
 
     if query:
         st.session_state.messages.append({"role": "user", "content": query})
@@ -237,9 +235,9 @@ def about_page():
     2.  **Adjust Settings:** In the sidebar, you can select the AI model and response detail level.
 
     #### Using the Analyzer
-    - Click the **📎 (Attachment)** button to the left of the chat input to open the upload section.
-    - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text.
-    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document.
+    - Click the **📎 (Attachment)** button to the left of the chat input at the bottom of the screen. This opens the uploader section at the top.
+    - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text, then click **Process Document**.
+    - A summary will appear in the chat. You can then ask questions about the document.
 
     #### Using the T&C Writer
     - Simply type your requirements into the chat box (e.g., "Users can't share their login info. We can close accounts if they misuse the service.").
