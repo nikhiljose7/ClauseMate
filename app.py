@@ -152,12 +152,18 @@ def main_app_page(app_mode):
 
     # Document-related UI (Only for Analyzer mode)
     if app_mode == "Analyzer":
+        # **CORRECTION**: Moved the attach button to a stable position at the top of the pane.
+        st.button(
+            "📎 Attach Document",
+            on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)),
+            help="Upload, paste, or link to a document for analysis"
+        )
+
         if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
             with st.expander("Document Preview", expanded=False):
                 st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
                 st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
 
-        # **CORRECTION**: Conditionally show the attachment UI based on session state
         if st.session_state.get("show_attachment", False):
             with st.expander("Attach Document", expanded=True):
                 input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
@@ -177,32 +183,22 @@ def main_app_page(app_mode):
                             analysis = perform_initial_analysis(text, model_choice, detail_level)
                             st.session_state.update(analysis)
                             st.session_state.document_processed = True
-                            st.session_state.show_attachment = False  # Hide after processing
+                            st.session_state.show_attachment = False
 
                             summary_message = (
                                 f"**Document Processed: {analysis.get('company_name')}**\n\n"
                                 f"**Summary:**\n{analysis.get('summary')}"
                             )
                             st.session_state.messages.append({"role": "assistant", "content": summary_message})
-                            
                             st.rerun()
 
-    # Chat interface
+    # Chat interface - Display previous messages
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # **CORRECTION**: Place Attach button next to the chat input for Analyzer mode
-    if app_mode == "Analyzer":
-        col1, col2 = st.columns([1, 10])
-        with col1:
-            st.button("📎", on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)), help="Attach a document")
-        with col2:
-            query = st.chat_input(f"Ask a question about the document...")
-    else:
-        query = st.chat_input(f"Ask a question in {app_mode} mode...")
-
-    if query:
+    # **CORRECTION**: Unified chat input is now at the bottom level, ensuring it docks correctly.
+    if query := st.chat_input(f"Your message for {app_mode}..."):
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
@@ -228,12 +224,12 @@ def about_page():
 
     ### How to Use the App
     1.  **Select a Mode:** Use the radio buttons in the sidebar to choose between **Analyzer**, **T&C Writer**, or **General Chat**.
-    2.  **Adjust Settings:** In the sidebar, you can select the AI model (Groq for speed, Gemini for power) and choose between "Concise" or "Detailed" responses.
+    2.  **Adjust Settings:** In the sidebar, you can select the AI model and response detail level.
 
     #### Using the Analyzer
-    - Click the **📎 (Attach)** button next to the chat input to open the upload section.
+    - Click the **📎 Attach Document** button at the top of the page to open the upload section.
     - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text.
-    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document.
+    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document in the chat box at the bottom.
 
     #### Using the T&C Writer
     - Simply type your requirements into the chat box (e.g., "Users can't share their login info. We can close accounts if they misuse the service.").
@@ -256,7 +252,7 @@ def main():
     # Initialize session state variables
     st.session_state.setdefault("messages", [])
     st.session_state.setdefault("model_choice", "Groq")
-    st.session_state.setdefault("show_attachment", False) # For toggling the uploader
+    st.session_state.setdefault("show_attachment", False)
 
     with st.sidebar:
         st.title("ClauseMate")
