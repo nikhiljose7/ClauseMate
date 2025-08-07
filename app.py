@@ -150,8 +150,20 @@ def main_app_page(app_mode):
             else:
                 st.info("No document loaded for analysis.")
 
-    # Main page content
+    # Document-related UI (Only for Analyzer mode)
     if app_mode == "Analyzer":
+        # **CORRECTION**: Moved the attach button to a stable position at the top of the pane.
+        st.button(
+            "📎 Attach Document",
+            on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)),
+            help="Upload, paste, or link to a document for analysis"
+        )
+
+        if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
+            with st.expander("Document Preview", expanded=False):
+                st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
+                st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
+
         if st.session_state.get("show_attachment", False):
             with st.expander("Attach Document", expanded=True):
                 input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
@@ -180,33 +192,13 @@ def main_app_page(app_mode):
                             st.session_state.messages.append({"role": "assistant", "content": summary_message})
                             st.rerun()
 
-        if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
-            with st.expander("Document Preview", expanded=False):
-                st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
-                st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
-    
-    # Isolate the chat history in a container
-    with st.container():
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    # Chat interface - Display previous messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    # Input controls at the bottom
-    query = None
-    if app_mode == "Analyzer":
-        col1, col2 = st.columns([1, 12])
-        with col1:
-            st.button(
-                "📎", 
-                on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)),
-                help="Attach a document for analysis"
-            )
-        with col2:
-            query = st.chat_input("Ask a question about the document...", key="analyzer_input")
-    else:
-        query = st.chat_input(f"Your message for {app_mode}...", key="other_input")
-
-    if query:
+    # **CORRECTION**: Unified chat input is now at the bottom level, ensuring it docks correctly.
+    if query := st.chat_input(f"Your message for {app_mode}..."):
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
@@ -235,9 +227,9 @@ def about_page():
     2.  **Adjust Settings:** In the sidebar, you can select the AI model and response detail level.
 
     #### Using the Analyzer
-    - Click the **📎 (Attachment)** button to the left of the chat input at the bottom of the screen. This opens the uploader section at the top.
-    - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text, then click **Process Document**.
-    - A summary will appear in the chat. You can then ask questions about the document.
+    - Click the **📎 Attach Document** button at the top of the page to open the upload section.
+    - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text.
+    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document in the chat box at the bottom.
 
     #### Using the T&C Writer
     - Simply type your requirements into the chat box (e.g., "Users can't share their login info. We can close accounts if they misuse the service.").
