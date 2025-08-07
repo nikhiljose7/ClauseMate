@@ -23,8 +23,20 @@ QA_PROMPT = PromptTemplate(
     )
 )
 
-
-
+GENERAL_CHAT = PromptTemplate(
+    input_variables=["context", "question", "detail_level"],
+    template=(
+        "You are a helpful assistant that explains Terms & Conditions, Privacy Policies, and similar documents in simple, clear language.\n\n"
+        "You can use general knowledge of how these documents usually work. If additional context is provided, use it to give a more relevant answer.\n"
+        "Do not make anything up. If you're unsure about something specific, suggest the user consult a legal professional.\n\n"
+        "--- Context (optional) ---\n"
+        "{context}\n"
+        "--- End of Context ---\n\n"
+        "User Question:\n"
+        "{question}\n\n"
+        "Answer in a {detail_level} way. Be clear, friendly, and helpful. Break down complex ideas, avoid legal jargon, and explain anything risky or unclear."
+    )
+)
 
 REWRITE_PROMPT = PromptTemplate(
     input_variables=["clause"],
