@@ -35,7 +35,6 @@ def process_document(uploaded_file, url, pasted_text):
         elif pasted_text and pasted_text.strip():
             text = pasted_text
         else:
-            # Added a check for empty pasted_text
             st.error("Please provide a document, URL, or paste text to process.")
             return None
 
@@ -58,22 +57,19 @@ def perform_initial_analysis(text, model_choice, detail_level):
         logging.info(f"Performing initial analysis with {model_choice}.")
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
 
-        # Use the SUMMARY_PROMPT for initial analysis
         summary_prompt = prompts.SUMMARY_PROMPT.format(
-            context=text[:2500], # Provide a slightly larger context for better summary
+            context=text[:2500],
             question="Summarize this document for a user.",
             detail_level=detail_level.lower()
         )
         summary = llm_generate(summary_prompt).strip()
         logging.info("Summary generated.")
         
-        # A simple way to guess the company name
         company_name = "the document"
         lines = text.split('\n')
         if lines:
-            # Often the first non-trivial line has the title or company
             for line in lines[:10]:
-                if len(line.strip()) > 5: # Avoid short/empty lines
+                if len(line.strip()) > 5:
                     company_name = line.strip()
                     break
         logging.info(f"Extracted company/document name: {company_name}")
@@ -96,7 +92,6 @@ def get_response(query, detail_level, app_mode, model_choice):
     
     try:
         if app_mode == "Analyzer":
-            # RAG-based response using the uploaded document
             vs = vectorstore.load_vectorstore()
             if not vs:
                 st.warning("No document is loaded. Please process a document first for analysis.")
@@ -107,11 +102,9 @@ def get_response(query, detail_level, app_mode, model_choice):
             prompt = prompts.QA_PROMPT.format(context=context, question=query, detail_level=detail_level.lower())
 
         elif app_mode == "T&C Writer":
-            # Generate legal clauses from user's informal input
             prompt = prompts.REWRITE_PROMPT.format(clause=query)
 
         else:  # General Chat
-            # General conversation, with optional web search for context
             logging.info("No document context found. Performing live web search.")
             context = search.live_web_search(query)
             prompt = prompts.GENERAL_CHAT.format(context=context, question=query, detail_level=detail_level.lower())
@@ -133,8 +126,6 @@ def clear_document_memory():
     for key in keys_to_clear:
         if key in st.session_state:
             del st.session_state[key]
-    # Keep chat history for now, or clear it as well if desired
-    # st.session_state.messages = []
     st.rerun()
 
 
@@ -151,7 +142,6 @@ def main_app_page(app_mode):
         model_choice = st.selectbox("Select Model", ["Groq", "Gemini"], key="model_choice")
         st.divider()
 
-        # Analyzer-specific sidebar items
         if app_mode == "Analyzer":
             if st.session_state.get("document_processed"):
                 st.success(f"Document Loaded: {st.session_state.get('company_name', 'Unknown')}")
@@ -160,40 +150,59 @@ def main_app_page(app_mode):
             else:
                 st.info("No document loaded for analysis.")
 
-    # Document processing UI (only for Analyzer mode)
+    # Document-related UI (Only for Analyzer mode)
     if app_mode == "Analyzer":
         if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
             with st.expander("Document Preview", expanded=False):
                 st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
                 st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
 
-        # Attachment expander
-        with st.expander("Attach Document", expanded=not st.session_state.get("document_processed", False)):
-            input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
-            
-            uploaded_file = url = pasted_text = None
-            if input_method == "Upload":
-                uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx"])
-            elif input_method == "URL":
-                url = st.text_input("Enter the URL")
-            else:
-                pasted_text = st.text_area("Paste your text here", height=150)
+        # **CORRECTION**: Conditionally show the attachment UI based on session state
+        if st.session_state.get("show_attachment", False):
+            with st.expander("Attach Document", expanded=True):
+                input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
+                
+                uploaded_file = url = pasted_text = None
+                if input_method == "Upload":
+                    uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx"])
+                elif input_method == "URL":
+                    url = st.text_input("Enter the URL")
+                else:
+                    pasted_text = st.text_area("Paste your text here", height=150)
 
-            if st.button("Process Document", type="primary"):
-                with st.spinner("Processing document..."):
-                    text = process_document(uploaded_file, url, pasted_text)
-                    if text:
-                        analysis = perform_initial_analysis(text, model_choice, detail_level)
-                        st.session_state.update(analysis)
-                        st.session_state.document_processed = True
-                        st.rerun()
+                if st.button("Process Document", type="primary"):
+                    with st.spinner("Processing document..."):
+                        text = process_document(uploaded_file, url, pasted_text)
+                        if text:
+                            analysis = perform_initial_analysis(text, model_choice, detail_level)
+                            st.session_state.update(analysis)
+                            st.session_state.document_processed = True
+                            st.session_state.show_attachment = False  # Hide after processing
+
+                            summary_message = (
+                                f"**Document Processed: {analysis.get('company_name')}**\n\n"
+                                f"**Summary:**\n{analysis.get('summary')}"
+                            )
+                            st.session_state.messages.append({"role": "assistant", "content": summary_message})
+                            
+                            st.rerun()
 
     # Chat interface
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if query := st.chat_input(f"Ask a question in {app_mode} mode..."):
+    # **CORRECTION**: Place Attach button next to the chat input for Analyzer mode
+    if app_mode == "Analyzer":
+        col1, col2 = st.columns([1, 10])
+        with col1:
+            st.button("📎", on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)), help="Attach a document")
+        with col2:
+            query = st.chat_input(f"Ask a question about the document...")
+    else:
+        query = st.chat_input(f"Ask a question in {app_mode} mode...")
+
+    if query:
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
@@ -204,7 +213,7 @@ def main_app_page(app_mode):
                 st.markdown(response)
         
         st.session_state.messages.append({"role": "assistant", "content": response})
-
+        st.rerun()
 
 def about_page():
     """Renders the 'About' page with updated instructions."""
@@ -222,9 +231,9 @@ def about_page():
     2.  **Adjust Settings:** In the sidebar, you can select the AI model (Groq for speed, Gemini for power) and choose between "Concise" or "Detailed" responses.
 
     #### Using the Analyzer
-    - Click the **Attach Document** expander.
+    - Click the **📎 (Attach)** button next to the chat input to open the upload section.
     - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text.
-    - Click **Process Document**. Once processed, you can ask questions about the document in the chat box (e.g., "What does this say about data retention?").
+    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document.
 
     #### Using the T&C Writer
     - Simply type your requirements into the chat box (e.g., "Users can't share their login info. We can close accounts if they misuse the service.").
@@ -247,17 +256,16 @@ def main():
     # Initialize session state variables
     st.session_state.setdefault("messages", [])
     st.session_state.setdefault("model_choice", "Groq")
+    st.session_state.setdefault("show_attachment", False) # For toggling the uploader
 
     with st.sidebar:
         st.title("ClauseMate")
         st.subheader("Your AI Legal Assistant")
         st.divider()
 
-        # App navigation
         page = st.radio("Navigation", ["App", "About"])
         st.divider()
         
-        # Mode selection is now part of the sidebar settings
         app_mode = st.radio("Choose Mode:", ["Analyzer", "T&C Writer", "General Chat"], key="app_mode")
 
         if st.button("Clear Chat History", use_container_width=True):
