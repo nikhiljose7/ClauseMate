@@ -221,19 +221,28 @@ def analyzer_page():
             st.rerun()
 
 def instructions_page():
-    """Renders the instructions page."""
-    st.title("How to Use This App")
+    """Renders the 'About' page."""
+    st.title("About ClauseMate")
     st.markdown("""
-    This app helps you understand or write Terms & Conditions or legal documents.
+    ### What is this App?
+    **ClauseMate** is your AI-powered legal assistant, designed to help you understand and create complex legal documents like Terms & Conditions and Privacy Policies. It has two main functions:
+    
+    1.  **Analyze Documents:** You can upload an existing document, and ClauseMate will use its AI to answer your specific questions about the content.
+    2.  **Generate Documents:** If you need a new document, you can simply ask ClauseMate to write one for you from scratch.
 
-    ### How It Works
-    - **Analyze a Document:** Upload, paste, or link to a document to ask specific questions about it. The app uses Retrieval-Augmented Generation (RAG) to find the exact clauses in your document to answer your questions.
-    - **Generate a Document:** If no document is uploaded, simply ask the AI to write one for you (e.g., "Write T&C for a mobile app"). It will use a live web search for context.
+    ### How to Use the App
 
-    ### Steps
-    1.  Go to the **Analyzer** tab.
-    2.  Click the **Attach** button to add a document (optional).
-    3.  Ask a question or request a new document in the chat box below.
+    #### To Analyze a Document:
+    1.  Navigate to the **Analyzer** tab.
+    2.  Click the **Attach** button to open the document uploader.
+    3.  Choose your preferred method: upload a file (PDF/DOCX), paste a URL, or paste raw text.
+    4.  Click **Process Document**.
+    5.  Once processed, you can ask specific questions about the document in the chat box (e.g., "What does this document say about refunds?").
+
+    #### To Generate a New Document:
+    1.  Navigate to the **Analyzer** tab.
+    2.  Ensure no document is loaded. If one is, click **Clear Document Memory** in the sidebar.
+    3.  In the chat box, simply ask the AI to write the document you need (e.g., "Write a simple privacy policy for a personal blog").
     """)
 
 
@@ -252,7 +261,8 @@ def main():
 
     with st.sidebar:
         st.title("Navigation")
-        page = st.radio("Go to:", ["Analyzer", "Instructions"])
+        # --- MODIFICATION: Changed page name to 'About' ---
+        page = st.radio("Go to:", ["Analyzer", "About"])
         
         st.divider()
 
@@ -261,7 +271,8 @@ def main():
                 st.session_state.tc_messages = []
                 st.rerun()
 
-    if page == "Instructions":
+    # --- MODIFICATION: Changed condition to check for 'About' ---
+    if page == "About":
         instructions_page()
     else:
         analyzer_page()
