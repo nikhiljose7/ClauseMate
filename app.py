@@ -2,21 +2,17 @@ import sys
 import os
 import logging
 from datetime import datetime
+import streamlit as st
 
-# --- FIX FOR IMPORT ERRORS ---
-# Add the project root directory to the Python path.
-# This ensures that all modules (like utils, models, and config) can be found.
+# Add the project root directory to the Python path
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 
-import streamlit as st
-
-# --- SETUP LOGGING ---
-# This will make sure the logs appear in the Streamlit Cloud console.
+# Setup logging to show in Streamlit Cloud console
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    stream=sys.stdout  # Explicitly direct logs to standard output
+    stream=sys.stdout
 )
 
 from utils import document_loader, vectorstore, prompts, search
@@ -55,7 +51,7 @@ def perform_initial_analysis(text, model_choice, mode):
     try:
         logging.info(f"Performing initial analysis with {model_choice}.")
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
-        
+
         summary_prompt = prompts.SUMMARY_PROMPT.format(
             context=text[:2000],
             question="Can you summarize this document in a clear and simple way for users?",
@@ -90,7 +86,7 @@ def get_rag_response(query, mode, special_mode, model_choice):
     try:
         vs = vectorstore.load_vectorstore()
         context_docs = vs.similarity_search(query, k=3) if vs else []
-        
+
         if context_docs:
             logging.info("Found context from existing document.")
             context = "\n".join([d.page_content for d in context_docs])
@@ -100,10 +96,10 @@ def get_rag_response(query, mode, special_mode, model_choice):
             logging.info("Live web search successful.")
 
         history = "".join(f"{('User' if msg['role'] == 'user' else 'Assistant')}: {msg['content']}\n" for msg in st.session_state.tc_messages)
-        
+
         prompt_question = f"{history}User: {query}\n"
         prompt = prompts.QA_PROMPT.format(context=context, question=prompt_question, detail_level=mode.lower())
-        
+
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
         logging.info(f"Generating answer with {model_choice}...")
         answer = llm_generate(prompt)
@@ -120,7 +116,7 @@ def get_rag_response(query, mode, special_mode, model_choice):
     except Exception as e:
         logging.error(f"CRITICAL ERROR in get_rag_response: {e}", exc_info=True)
         st.error(f"An error occurred: {e}")
-        logging.shutdown() # Force logs to be written
+        logging.shutdown()
         return "Sorry, a critical error occurred. Please check the application logs for details."
 
 
@@ -142,7 +138,6 @@ def analyzer_page():
         mode = st.radio("Response Mode", ["Concise", "Detailed"])
         special_mode = st.checkbox("Rewrite to Legal Language")
         model_choice = st.selectbox("Select Model", ["Groq", "Gemini"], key="model_choice")
-        
         st.divider()
 
         if st.session_state.get("document_processed"):
@@ -158,7 +153,6 @@ def analyzer_page():
             st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
             st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
 
-    # --- MODIFICATION: Display speaker names instead of time ---
     for message in st.session_state.tc_messages:
         name = "You" if message["role"] == "user" else "ClauseMate"
         with st.chat_message(message["role"]):
@@ -168,7 +162,7 @@ def analyzer_page():
     if st.session_state.get("show_attachment", False):
         with st.expander("Attach Document", expanded=True):
             input_method = st.radio("Choose input method:", ["Upload File (PDF/DOCX)", "Enter URL", "Paste Text"], horizontal=True)
-            
+
             uploaded_file = url = pasted_text = None
             if input_method == "Upload File (PDF/DOCX)":
                 uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx"])
@@ -186,12 +180,12 @@ def analyzer_page():
                         st.session_state.update(analysis_results)
                         st.session_state.document_processed = True
                         st.session_state.show_attachment = False
-                        
+
                         preview_message_content = (
                             f"**Document Processed: {analysis_results.get('company_name')}**\n\n"
                             f"**Summary:**\n{analysis_results.get('summary')}"
                         )
-                        # --- MODIFICATION: Remove time from message ---
+
                         st.session_state.tc_messages.append({
                             "role": "assistant",
                             "content": preview_message_content
@@ -211,14 +205,12 @@ def analyzer_page():
 
     if query:
         if not st.session_state.tc_messages or st.session_state.tc_messages[-1].get("content") != query:
-            # --- MODIFICATION: Remove time from messages ---
             st.session_state.tc_messages.append({"role": "user", "content": query})
-            
             with st.spinner("Generating response..."):
                 answer = get_rag_response(query, mode, special_mode, model_choice)
-            
             st.session_state.tc_messages.append({"role": "assistant", "content": answer})
             st.rerun()
+
 
 def instructions_page():
     """Renders the 'About' page."""
@@ -226,7 +218,7 @@ def instructions_page():
     st.markdown("""
     ### What is this App?
     **ClauseMate** is your AI-powered legal assistant, designed to help you understand and create complex legal documents like Terms & Conditions and Privacy Policies. It has two main functions:
-    
+
     1.  **Analyze Documents:** You can upload an existing document, and ClauseMate will use its AI to answer your specific questions about the content.
     2.  **Generate Documents:** If you need a new document, you can simply ask ClauseMate to write one for you from scratch.
 
@@ -259,18 +251,13 @@ def main():
     st.session_state.setdefault("show_attachment", False)
     st.session_state.setdefault("model_choice", "Groq")
 
-    # --- MODIFICATION: Updated sidebar content ---
     with st.sidebar:
         st.title("ClauseMate")
         st.subheader("Your AI Legal Assistant")
-        
         st.divider()
-
         st.header("Navigation")
         page = st.radio("Go to:", ["Analyzer", "About"])
-        
         st.divider()
-
         if page == "Analyzer":
             if st.button("Clear Chat History", use_container_width=True):
                 st.session_state.tc_messages = []
