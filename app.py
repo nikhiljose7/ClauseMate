@@ -6,25 +6,23 @@ from datetime import datetime
 
 # --- SETUP LOGGING ---
 # This will make sure the logs appear in the Streamlit Cloud console.
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout  # Explicitly direct logs to standard output
+)
 
-# Adjust path to import local modules
-# Ensure this path is correct for your project structure
-# This line might not be necessary for Streamlit Cloud deployment
-# as it assumes a standard project structure.
-try:
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from utils import document_loader, vectorstore, prompts, search
-    from models.llm import gemini_generate, groq_generate
-except ImportError as e:
-    logging.error(f"Error importing modules: {e}")
-    st.error(f"A module could not be imported. Please check the project structure and requirements.txt. Error: {e}")
-    st.stop()
+# It's better to let Streamlit handle the path.
+# If there are import errors, it's usually a sign of a structural issue
+# or a problem in how the app is launched.
+from utils import document_loader, vectorstore, prompts, search
+from models.llm import gemini_generate, groq_generate
 
 
 def process_document(uploaded_file, url, pasted_text):
     """Extracts text from the provided source and builds a vector store."""
     try:
+        logging.info("Starting document processing.")
         if uploaded_file:
             text = (
                 document_loader.extract_text_from_pdf(uploaded_file)
@@ -41,6 +39,7 @@ def process_document(uploaded_file, url, pasted_text):
         chunks = document_loader.split_text(text)
         vectorstore.create_vectorstore(chunks)
         st.session_state["doc_text"] = text
+        logging.info("Document processing successful.")
         return text
     except Exception as e:
         logging.error("Error in process_document", exc_info=True)
@@ -50,14 +49,16 @@ def process_document(uploaded_file, url, pasted_text):
 def perform_initial_analysis(text, model_choice, mode):
     """Generates a summary and extracts the company name from the text."""
     try:
+        logging.info(f"Performing initial analysis with {model_choice}.")
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
         
         summary_prompt = prompts.SUMMARY_PROMPT.format(
-            context=text[:2000], # Use a snippet for a quick, high-level summary
+            context=text[:2000],
             question="Can you summarize this document in a clear and simple way for users?",
             detail_level=mode.lower()
         )
         summary = llm_generate(summary_prompt).strip()
+        logging.info("Summary generated.")
 
         company_name = "an unknown company"
         lines = text.split("\n")
@@ -65,6 +66,7 @@ def perform_initial_analysis(text, model_choice, mode):
             if "terms" in line.lower() and ("for" in line.lower() or "of" in line.lower()):
                 company_name = line.strip()
                 break
+        logging.info("Company name extracted.")
 
         return {
             "summary": summary,
@@ -80,7 +82,7 @@ def perform_initial_analysis(text, model_choice, mode):
 
 def get_rag_response(query, mode, special_mode, model_choice):
     """Gets a response from the RAG pipeline."""
-    logging.info(f"--- Starting get_rag_response for query: '{query}' with model: {model_choice} ---")
+    logging.info(f"--- Starting RAG response for query: '{query}' with model: {model_choice} ---")
     try:
         vs = vectorstore.load_vectorstore()
         context_docs = vs.similarity_search(query, k=3) if vs else []
@@ -109,14 +111,13 @@ def get_rag_response(query, mode, special_mode, model_choice):
             answer = llm_generate(rewrite_prompt)
             logging.info("Rewrite successful.")
 
+        logging.info("--- RAG response finished successfully. ---")
         return answer.strip()
     except Exception as e:
-        # --- THIS IS THE MOST IMPORTANT PART ---
-        # It will print the full error to your Streamlit logs.
         logging.error(f"CRITICAL ERROR in get_rag_response: {e}", exc_info=True)
-        # Display the specific error in the Streamlit UI as well for easier debugging.
-        st.error(f"An error occurred while generating the response: {e}")
-        return "Sorry, I ran into an issue. Please check the logs for details."
+        st.error(f"An error occurred: {e}")
+        logging.shutdown() # Force logs to be written
+        return "Sorry, a critical error occurred. Please check the application logs for details."
 
 
 def clear_document_memory():
