@@ -1,14 +1,25 @@
 import streamlit as st
 import os
 import sys
+import logging
 from datetime import datetime
+
+# --- SETUP LOGGING ---
+# This will make sure the logs appear in the Streamlit Cloud console.
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Adjust path to import local modules
 # Ensure this path is correct for your project structure
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from utils import document_loader, vectorstore, prompts, search
-from models.llm import gemini_generate, groq_generate
+# This line might not be necessary for Streamlit Cloud deployment
+# as it assumes a standard project structure.
+try:
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    from utils import document_loader, vectorstore, prompts, search
+    from models.llm import gemini_generate, groq_generate
+except ImportError as e:
+    logging.error(f"Error importing modules: {e}")
+    st.error(f"A module could not be imported. Please check the project structure and requirements.txt. Error: {e}")
+    st.stop()
 
 
 def process_document(uploaded_file, url, pasted_text):
@@ -32,6 +43,7 @@ def process_document(uploaded_file, url, pasted_text):
         st.session_state["doc_text"] = text
         return text
     except Exception as e:
+        logging.error("Error in process_document", exc_info=True)
         raise e
 
 
@@ -40,7 +52,6 @@ def perform_initial_analysis(text, model_choice, mode):
     try:
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
         
-        # --- KEY CHANGE: Using the correct prompt for summarization ---
         summary_prompt = prompts.SUMMARY_PROMPT.format(
             context=text[:2000], # Use a snippet for a quick, high-level summary
             question="Can you summarize this document in a clear and simple way for users?",
@@ -59,7 +70,8 @@ def perform_initial_analysis(text, model_choice, mode):
             "summary": summary,
             "company_name": company_name
         }
-    except Exception:
+    except Exception as e:
+        logging.error("Error in perform_initial_analysis", exc_info=True)
         return {
             "summary": "Could not generate summary.",
             "company_name": "an unknown company"
@@ -68,29 +80,43 @@ def perform_initial_analysis(text, model_choice, mode):
 
 def get_rag_response(query, mode, special_mode, model_choice):
     """Gets a response from the RAG pipeline."""
+    logging.info(f"--- Starting get_rag_response for query: '{query}' with model: {model_choice} ---")
     try:
         vs = vectorstore.load_vectorstore()
         context_docs = vs.similarity_search(query, k=3) if vs else []
         
-        context = "\n".join([d.page_content for d in context_docs]) if context_docs else search.live_web_search(query)
+        if context_docs:
+            logging.info("Found context from existing document.")
+            context = "\n".join([d.page_content for d in context_docs])
+        else:
+            logging.info("No document context found. Performing live web search.")
+            context = search.live_web_search(query)
+            logging.info("Live web search successful.")
 
         history = "".join(f"{('User' if msg['role'] == 'user' else 'Assistant')}: {msg['content']}\n" for msg in st.session_state.tc_messages)
         
         prompt_question = f"{history}User: {query}\n"
-        # --- CORRECT: Using the QA_PROMPT for specific questions ---
         prompt = prompts.QA_PROMPT.format(context=context, question=prompt_question, detail_level=mode.lower())
         
         llm_generate = groq_generate if model_choice == "Groq" else gemini_generate
+        logging.info(f"Generating answer with {model_choice}...")
         answer = llm_generate(prompt)
+        logging.info("Answer generated successfully.")
 
         if special_mode:
+            logging.info("Applying special mode: Rewriting to legal language.")
             rewrite_prompt = prompts.REWRITE_PROMPT.format(clause=answer)
             answer = llm_generate(rewrite_prompt)
+            logging.info("Rewrite successful.")
 
         return answer.strip()
     except Exception as e:
-        st.error(f"Error getting response: {e}")
-        return "Sorry, I ran into an issue while generating the response."
+        # --- THIS IS THE MOST IMPORTANT PART ---
+        # It will print the full error to your Streamlit logs.
+        logging.error(f"CRITICAL ERROR in get_rag_response: {e}", exc_info=True)
+        # Display the specific error in the Streamlit UI as well for easier debugging.
+        st.error(f"An error occurred while generating the response: {e}")
+        return "Sorry, I ran into an issue. Please check the logs for details."
 
 
 def clear_document_memory():
@@ -132,7 +158,7 @@ def analyzer_page():
             st.markdown(f"*{message['time']}*")
             st.markdown(message["content"])
 
-    if st.session_state.show_attachment:
+    if st.session_state.get("show_attachment", False):
         with st.expander("Attach Document", expanded=True):
             input_method = st.radio("Choose input method:", ["Upload File (PDF/DOCX)", "Enter URL", "Paste Text"], horizontal=True)
             
@@ -172,7 +198,7 @@ def analyzer_page():
     with st.container():
         col1, col2 = st.columns([1, 10])
         with col1:
-            st.button("Attach", on_click=lambda: st.session_state.update(show_attachment=not st.session_state.show_attachment))
+            st.button("Attach", on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)))
         with col2:
             query = st.chat_input("Ask a question or request to generate Terms & Conditions...")
 
