@@ -1,8 +1,15 @@
-import streamlit as st
-import os
 import sys
+import os
 import logging
 from datetime import datetime
+
+# --- FIX FOR IMPORT ERRORS ---
+# Add the project root directory to the Python path.
+# This ensures that all modules (like utils, models, and config) can be found.
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+sys.path.insert(0, PROJECT_ROOT)
+
+import streamlit as st
 
 # --- SETUP LOGGING ---
 # This will make sure the logs appear in the Streamlit Cloud console.
@@ -12,9 +19,6 @@ logging.basicConfig(
     stream=sys.stdout  # Explicitly direct logs to standard output
 )
 
-# It's better to let Streamlit handle the path.
-# If there are import errors, it's usually a sign of a structural issue
-# or a problem in how the app is launched.
 from utils import document_loader, vectorstore, prompts, search
 from models.llm import gemini_generate, groq_generate
 
