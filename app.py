@@ -152,18 +152,12 @@ def main_app_page(app_mode):
 
     # Document-related UI (Only for Analyzer mode)
     if app_mode == "Analyzer":
-        # **CORRECTION**: Moved the attach button to a stable position at the top of the pane.
-        st.button(
-            "📎 Attach Document",
-            on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)),
-            help="Upload, paste, or link to a document for analysis"
-        )
-
         if st.session_state.get("document_processed") and "doc_summary" in st.session_state:
             with st.expander("Document Preview", expanded=False):
                 st.info(f"Currently analyzing: **{st.session_state.get('company_name', 'an unknown company')}**.")
                 st.markdown(f"**Summary:** {st.session_state.get('doc_summary', 'Not available.')}")
 
+        # This section is toggled by the attach button at the bottom
         if st.session_state.get("show_attachment", False):
             with st.expander("Attach Document", expanded=True):
                 input_method = st.radio("Input method:", ["Upload", "URL", "Text"], horizontal=True)
@@ -197,8 +191,24 @@ def main_app_page(app_mode):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # **CORRECTION**: Unified chat input is now at the bottom level, ensuring it docks correctly.
-    if query := st.chat_input(f"Your message for {app_mode}..."):
+    # **CORRECTION**: Layout for the chat input and attach button.
+    query = None
+    if app_mode == "Analyzer":
+        # Using columns to place the button to the left of the input box.
+        col1, col2 = st.columns([1, 10])
+        with col1:
+            st.button(
+                "📎", 
+                on_click=lambda: st.session_state.update(show_attachment=not st.session_state.get("show_attachment", False)),
+                help="Attach a document for analysis"
+            )
+        with col2:
+            query = st.chat_input("Ask a question about the document...")
+    else:
+        query = st.chat_input(f"Your message for {app_mode}...")
+
+
+    if query:
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
@@ -227,9 +237,9 @@ def about_page():
     2.  **Adjust Settings:** In the sidebar, you can select the AI model and response detail level.
 
     #### Using the Analyzer
-    - Click the **📎 Attach Document** button at the top of the page to open the upload section.
+    - Click the **📎 (Attachment)** button to the left of the chat input to open the upload section.
     - Choose to upload a file (PDF/DOCX), paste a URL, or paste raw text.
-    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document in the chat box at the bottom.
+    - Click **Process Document**. A summary will appear in the chat. You can then ask questions about the document.
 
     #### Using the T&C Writer
     - Simply type your requirements into the chat box (e.g., "Users can't share their login info. We can close accounts if they misuse the service.").
