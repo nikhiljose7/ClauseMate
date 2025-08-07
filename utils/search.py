@@ -12,13 +12,14 @@ def live_web_search(query):
         # are in a list under the 'results' key.
         response = client.search(query, max_results=3)
         
-        # Safely get the list of results
+        # Safely get the list of results from the response dictionary
         results_list = response.get('results', [])
         
         if not results_list:
             logging.warning("Tavily search returned no results.")
             return "No information could be found from a web search."
             
+        # Safely get the 'content' from each result dictionary
         return "\n".join([r.get('content', '') for r in results_list])
 
     except Exception as e:
